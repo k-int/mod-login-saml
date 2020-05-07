@@ -1,6 +1,65 @@
 package org.folio.rest.impl;
 
-import io.vertx.core.*;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+
+import javax.ws.rs.core.NewCookie;
+import javax.ws.rs.core.Response;
+import javax.ws.rs.core.UriBuilder;
+
+import org.folio.config.ConfigurationsClient;
+import org.folio.config.SamlClientLoader;
+import org.folio.config.SamlConfigHolder;
+import org.folio.config.model.SamlClientComposite;
+import org.folio.config.model.SamlConfiguration;
+import org.folio.rest.jaxrs.model.SamlCheck;
+import org.folio.rest.jaxrs.model.SamlConfig;
+import org.folio.rest.jaxrs.model.SamlConfigRequest;
+import org.folio.rest.jaxrs.model.SamlLogin;
+import org.folio.rest.jaxrs.model.SamlLoginRequest;
+import org.folio.rest.jaxrs.model.SamlRegenerateResponse;
+import org.folio.rest.jaxrs.model.SamlValidateGetType;
+import org.folio.rest.jaxrs.model.SamlValidateResponse;
+import org.folio.rest.jaxrs.resource.Saml;
+import org.folio.rest.jaxrs.resource.Saml.PostSamlCallbackResponse.HeadersFor302;
+import org.folio.rest.tools.client.HttpClientFactory;
+import org.folio.rest.tools.client.interfaces.HttpClientInterface;
+import org.folio.session.NoopSession;
+import org.folio.util.Base64Util;
+import org.folio.util.ConfigEntryUtil;
+import org.folio.util.HttpActionMapper;
+import org.folio.util.OkapiHelper;
+import org.folio.util.UrlUtil;
+import org.folio.util.VertxUtils;
+import org.folio.util.model.OkapiHeaders;
+import org.folio.util.model.UrlCheckResult;
+import org.pac4j.core.authorization.authorizer.csrf.CsrfAuthorizer;
+import org.pac4j.core.authorization.authorizer.csrf.CsrfTokenGeneratorAuthorizer;
+import org.pac4j.core.authorization.authorizer.csrf.DefaultCsrfTokenGenerator;
+import org.pac4j.core.context.Pac4jConstants;
+import org.pac4j.core.context.WebContext;
+import org.pac4j.core.exception.HttpAction;
+import org.pac4j.core.redirect.RedirectAction;
+import org.pac4j.saml.client.SAML2Client;
+import org.pac4j.saml.client.SAML2ClientConfiguration;
+import org.pac4j.saml.credentials.SAML2Credentials;
+import org.pac4j.vertx.VertxWebContext;
+import org.springframework.util.StringUtils;
+
+import io.vertx.core.AsyncResult;
+import io.vertx.core.CompositeFuture;
+import io.vertx.core.Context;
+import io.vertx.core.Future;
+import io.vertx.core.Handler;
+import io.vertx.core.Promise;
+import io.vertx.core.Vertx;
+import io.vertx.core.http.Cookie;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.json.Json;
 import io.vertx.core.json.JsonObject;
@@ -10,35 +69,6 @@ import io.vertx.ext.auth.PRNG;
 import io.vertx.ext.web.RoutingContext;
 import io.vertx.ext.web.Session;
 import io.vertx.ext.web.sstore.impl.SharedDataSessionImpl;
-import org.folio.config.ConfigurationsClient;
-import org.folio.config.SamlClientLoader;
-import org.folio.config.SamlConfigHolder;
-import org.folio.config.model.SamlClientComposite;
-import org.folio.config.model.SamlConfiguration;
-import org.folio.rest.jaxrs.model.*;
-import org.folio.rest.jaxrs.resource.Saml;
-import org.folio.rest.jaxrs.resource.Saml.PostSamlCallbackResponse.HeadersFor302;
-import org.folio.rest.tools.client.HttpClientFactory;
-import org.folio.rest.tools.client.interfaces.HttpClientInterface;
-import org.folio.session.NoopSession;
-import org.folio.util.*;
-import org.folio.util.model.OkapiHeaders;
-import org.folio.util.model.UrlCheckResult;
-import org.pac4j.core.exception.HttpAction;
-import org.pac4j.core.redirect.RedirectAction;
-import org.pac4j.saml.client.SAML2Client;
-import org.pac4j.saml.client.SAML2ClientConfiguration;
-import org.pac4j.saml.credentials.SAML2Credentials;
-import org.pac4j.vertx.VertxWebContext;
-import org.springframework.util.StringUtils;
-
-import javax.ws.rs.core.NewCookie;
-import javax.ws.rs.core.Response;
-import javax.ws.rs.core.UriBuilder;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.nio.charset.StandardCharsets;
-import java.util.*;
 
 /**
  * Main entry point of module
@@ -78,10 +108,18 @@ public class SamlAPI implements Saml {
     Session session = new SharedDataSessionImpl(new PRNG(vertxContext.owner()));
     session.put("samlRelayState", stripesUrl);
     routingContext.setSession(session);
-
-
+    
     findSaml2Client(routingContext, false, false) // do not allow login, if config is missing
       .setHandler(samlClientHandler -> {
+        WebContext webContext = VertxUtils.createWebContext(routingContext);
+        
+        CsrfTokenGeneratorAuthorizer csrfTokenAuth = new CsrfTokenGeneratorAuthorizer(new DefaultCsrfTokenGenerator());
+        try {
+          csrfTokenAuth.isAuthorized(webContext, null);
+        } catch (HttpAction e) {
+          log.warn("Problem adding CSRF token", e);
+        }
+
         Response response;
         if (samlClientHandler.succeeded()) {
           SAML2Client saml2Client = samlClientHandler.result().getClient();
@@ -107,9 +145,29 @@ public class SamlAPI implements Saml {
   public void postSamlCallback(RoutingContext routingContext, Map<String, String> okapiHeaders,
                                Handler<AsyncResult<Response>> asyncResultHandler, Context vertxContext) {
 
-    registerFakeSession(routingContext);
-
+    Session session;
+    Cookie csrfTokenCookie = routingContext.getCookie(Pac4jConstants.CSRF_TOKEN);
+    if(csrfTokenCookie != null) {
+      session = new SharedDataSessionImpl(new PRNG(vertxContext.owner()));      
+      session.put(Pac4jConstants.CSRF_TOKEN, csrfTokenCookie.getValue());
+    } else {
+      session = new NoopSession();
+    }
+    routingContext.setSession(session);
+    
     final VertxWebContext webContext = VertxUtils.createWebContext(routingContext);
+    CsrfAuthorizer csrfAuth = new CsrfAuthorizer();
+    csrfAuth.setOnlyCheckPostRequest(false);
+    try {
+      if(!csrfAuth.isAuthorized(webContext, null)) {
+        asyncResultHandler.handle(Future.succeededFuture(PostSamlCallbackResponse.respond401WithTextPlain("CSRF attack")));
+        return;
+      }
+    } catch (HttpAction e2) {
+      asyncResultHandler.handle(Future.succeededFuture(PostSamlCallbackResponse.respond401WithTextPlain("CSRF attack")));
+      return;
+    }
+
     final String relayState = webContext.getRequestParameter("RelayState"); // There is no better way to get RelayState.
     URI relayStateUrl = null;
     try {

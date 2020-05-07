@@ -1,14 +1,16 @@
 package org.folio.rest.impl;
 
-import io.restassured.RestAssured;
-import io.restassured.http.ContentType;
-import io.restassured.http.Header;
-import io.vertx.core.DeploymentOptions;
-import io.vertx.core.Vertx;
-import io.vertx.core.json.Json;
-import io.vertx.core.json.JsonObject;
-import io.vertx.ext.unit.TestContext;
-import io.vertx.ext.unit.junit.VertxUnitRunner;
+import static io.restassured.RestAssured.given;
+import static io.restassured.module.jsv.JsonSchemaValidator.matchesJsonSchemaInClasspath;
+import static org.folio.util.Base64AwareXsdMatcher.matchesBase64XsdInClasspath;
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.equalTo;
+
+import java.io.IOException;
+import java.net.URI;
+import java.net.URLEncoder;
+import java.util.UUID;
+
 import org.folio.rest.RestVerticle;
 import org.folio.rest.jaxrs.model.SamlConfigRequest;
 import org.folio.rest.tools.client.test.HttpClientMock2;
@@ -18,19 +20,22 @@ import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.pac4j.core.context.Pac4jConstants;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.w3c.dom.ls.LSResourceResolver;
 
-import java.io.IOException;
-import java.net.URI;
-import java.net.URLEncoder;
-
-import static io.restassured.RestAssured.given;
-import static io.restassured.module.jsv.JsonSchemaValidator.matchesJsonSchemaInClasspath;
-import static org.folio.util.Base64AwareXsdMatcher.matchesBase64XsdInClasspath;
-import static org.hamcrest.Matchers.containsString;
-import static org.hamcrest.Matchers.equalTo;
+import io.restassured.RestAssured;
+import io.restassured.http.ContentType;
+import io.restassured.http.Header;
+import io.restassured.response.ExtractableResponse;
+import io.restassured.response.Response;
+import io.vertx.core.DeploymentOptions;
+import io.vertx.core.Vertx;
+import io.vertx.core.json.Json;
+import io.vertx.core.json.JsonObject;
+import io.vertx.ext.unit.TestContext;
+import io.vertx.ext.unit.junit.VertxUnitRunner;
 
 /**
  * @author rsass
@@ -119,6 +124,7 @@ public class SamlAPITest {
       .body("{\"stripesUrl\":\"" + STRIPES_URL + "\"}")
       .post("/saml/login")
       .then()
+      .log().all()
       .contentType(ContentType.JSON)
       .body(matchesJsonSchemaInClasspath("ramls/schemas/SamlLogin.json"))
       .body("bindingMethod", equalTo("POST"))
@@ -152,6 +158,7 @@ public class SamlAPITest {
 
     final String testPath = "/test/path";
 
+    // with no csrf token cookie
     given()
       .header(TENANT_HEADER)
       .header(TOKEN_HEADER)
@@ -160,11 +167,154 @@ public class SamlAPITest {
       .formParam("RelayState", STRIPES_URL + testPath)
       .post("/saml/callback")
       .then()
+      .statusCode(401);
+    
+    // login
+    String csrfTokenCookie = given()
+      .header(TENANT_HEADER)
+      .header(TOKEN_HEADER)
+      .header(OKAPI_URL_HEADER)
+      .header(JSON_CONTENT_TYPE_HEADER)
+      .body("{\"stripesUrl\":\"" + STRIPES_URL + "\"}")
+      .post("/saml/login")
+      .then()
+      .extract().cookie(Pac4jConstants.CSRF_TOKEN);
+ 
+    // with csrf token cookie but no header or param
+    given()
+      .header(TENANT_HEADER)
+      .header(TOKEN_HEADER)
+      .header(OKAPI_URL_HEADER)
+      .formParam("SAMLResponse", "saml-response")
+      .formParam("RelayState", STRIPES_URL + testPath)
+      .cookie(Pac4jConstants.CSRF_TOKEN, csrfTokenCookie + "; Path=/; Domain=localhost")
+      .post("/saml/callback")
+      .then()
+      .statusCode(401);
+    
+    // valid, as param
+    given()
+      .header(TENANT_HEADER)
+      .header(TOKEN_HEADER)
+      .header(OKAPI_URL_HEADER)
+      .formParam("SAMLResponse", "saml-response")
+      .formParam("RelayState", STRIPES_URL + testPath)
+      .formParam(Pac4jConstants.CSRF_TOKEN, csrfTokenCookie)
+      .cookie(Pac4jConstants.CSRF_TOKEN, csrfTokenCookie + "; Path=/; Domain=localhost")
+      .post("/saml/callback")
+      .then()
+      .statusCode(302)
+      .header("Location", containsString(URLEncoder.encode(testPath, "UTF-8")))
+      .header("x-okapi-token", "saml-token")
+      .cookie("ssoToken", "saml-token");    
+    
+    // valid, as header
+    given()
+      .header(TENANT_HEADER)
+      .header(TOKEN_HEADER)
+      .header(OKAPI_URL_HEADER)
+      .formParam("SAMLResponse", "saml-response")
+      .formParam("RelayState", STRIPES_URL + testPath)
+      .header(Pac4jConstants.CSRF_TOKEN, csrfTokenCookie)
+      .cookie(Pac4jConstants.CSRF_TOKEN, csrfTokenCookie + "; Path=/; Domain=localhost")
+      .post("/saml/callback")
+      .then()
       .statusCode(302)
       .header("Location", containsString(URLEncoder.encode(testPath, "UTF-8")))
       .header("x-okapi-token", "saml-token")
       .cookie("ssoToken", "saml-token");
-
+    
+    // valid, as param and header
+    given()
+      .header(TENANT_HEADER)
+      .header(TOKEN_HEADER)
+      .header(OKAPI_URL_HEADER)
+      .header(Pac4jConstants.CSRF_TOKEN, csrfTokenCookie)
+      .formParam("SAMLResponse", "saml-response")
+      .formParam("RelayState", STRIPES_URL + testPath)
+      .formParam(Pac4jConstants.CSRF_TOKEN, csrfTokenCookie)
+      .cookie(Pac4jConstants.CSRF_TOKEN, csrfTokenCookie + "; Path=/; Domain=localhost")
+      .post("/saml/callback")
+      .then()
+      .statusCode(302)
+      .header("Location", containsString(URLEncoder.encode(testPath, "UTF-8")))
+      .header("x-okapi-token", "saml-token")
+      .cookie("ssoToken", "saml-token");    
+    
+    // invalid, as param
+    given()
+      .header(TENANT_HEADER)
+      .header(TOKEN_HEADER)
+      .header(OKAPI_URL_HEADER)
+      .formParam("SAMLResponse", "saml-response")
+      .formParam("RelayState", STRIPES_URL + testPath)
+      .formParam(Pac4jConstants.CSRF_TOKEN, UUID.randomUUID().toString())
+      .cookie(Pac4jConstants.CSRF_TOKEN, csrfTokenCookie + "; Path=/; Domain=localhost")
+      .post("/saml/callback")
+      .then()
+      .statusCode(401);   
+    
+    // invalid, as header
+    given()
+      .header(TENANT_HEADER)
+      .header(TOKEN_HEADER)
+      .header(OKAPI_URL_HEADER)
+      .formParam("SAMLResponse", "saml-response")
+      .formParam("RelayState", STRIPES_URL + testPath)
+      .header(Pac4jConstants.CSRF_TOKEN, UUID.randomUUID().toString())
+      .cookie(Pac4jConstants.CSRF_TOKEN, csrfTokenCookie + "; Path=/; Domain=localhost")
+      .post("/saml/callback")
+      .then()
+      .statusCode(401); 
+    
+    // invalid, as param and header
+    given()
+      .header(TENANT_HEADER)
+      .header(TOKEN_HEADER)
+      .header(OKAPI_URL_HEADER)
+      .header(Pac4jConstants.CSRF_TOKEN, UUID.randomUUID().toString())
+      .formParam("SAMLResponse", "saml-response")
+      .formParam("RelayState", STRIPES_URL + testPath)
+      .formParam(Pac4jConstants.CSRF_TOKEN, UUID.randomUUID().toString())
+      .cookie(Pac4jConstants.CSRF_TOKEN, csrfTokenCookie + "; Path=/; Domain=localhost")
+      .post("/saml/callback")
+      .then()
+      .statusCode(401);    
+    
+    // valid param, invalid header
+    given()
+      .header(TENANT_HEADER)
+      .header(TOKEN_HEADER)
+      .header(OKAPI_URL_HEADER)
+      .header(Pac4jConstants.CSRF_TOKEN, UUID.randomUUID().toString())
+      .formParam("SAMLResponse", "saml-response")
+      .formParam("RelayState", STRIPES_URL + testPath)
+      .formParam(Pac4jConstants.CSRF_TOKEN, csrfTokenCookie)
+      .cookie(Pac4jConstants.CSRF_TOKEN, csrfTokenCookie + "; Path=/; Domain=localhost")
+      .post("/saml/callback")
+      .then()
+      .statusCode(302)
+      .header("Location", containsString(URLEncoder.encode(testPath, "UTF-8")))
+      .header("x-okapi-token", "saml-token")
+      .cookie("ssoToken", "saml-token");   
+    
+    // invalid param, valid header
+    given()
+      .header(TENANT_HEADER)
+      .header(TOKEN_HEADER)
+      .header(OKAPI_URL_HEADER)
+      .header(Pac4jConstants.CSRF_TOKEN, csrfTokenCookie)
+      .formParam("SAMLResponse", "saml-response")
+      .formParam("RelayState", STRIPES_URL + testPath)
+      .formParam(Pac4jConstants.CSRF_TOKEN, UUID.randomUUID().toString())
+      .cookie(Pac4jConstants.CSRF_TOKEN, csrfTokenCookie + "; Path=/; Domain=localhost")
+      .post("/saml/callback")
+      .then()
+      .statusCode(302)
+      .header("Location", containsString(URLEncoder.encode(testPath, "UTF-8")))
+      .header("x-okapi-token", "saml-token")
+      .cookie("ssoToken", "saml-token");       
+    
   }
 
   @Test
