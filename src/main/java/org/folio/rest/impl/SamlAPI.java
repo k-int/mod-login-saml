@@ -114,6 +114,9 @@ public class SamlAPI implements Saml {
         WebContext webContext = VertxUtils.createWebContext(routingContext);
         
         CsrfTokenGeneratorAuthorizer csrfTokenAuth = new CsrfTokenGeneratorAuthorizer(new DefaultCsrfTokenGenerator());
+        csrfTokenAuth.setPath("");
+        csrfTokenAuth.setDomain(routingContext.request().host());
+        
         try {
           csrfTokenAuth.isAuthorized(webContext, null);
         } catch (HttpAction e) {
