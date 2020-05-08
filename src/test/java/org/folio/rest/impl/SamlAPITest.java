@@ -4,7 +4,7 @@ import static io.restassured.RestAssured.given;
 import static io.restassured.module.jsv.JsonSchemaValidator.matchesJsonSchemaInClasspath;
 import static org.folio.util.Base64AwareXsdMatcher.matchesBase64XsdInClasspath;
 import static org.hamcrest.Matchers.containsString;
-import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.*;
 
 import java.io.IOException;
 import java.net.URI;
@@ -13,6 +13,7 @@ import java.util.UUID;
 
 import org.folio.rest.RestVerticle;
 import org.folio.rest.jaxrs.model.SamlConfigRequest;
+import org.folio.rest.jaxrs.model.SamlLogin;
 import org.folio.rest.tools.client.test.HttpClientMock2;
 import org.folio.util.TestingClasspathResolver;
 import org.junit.After;
@@ -99,6 +100,139 @@ public class SamlAPITest {
       .body(matchesJsonSchemaInClasspath("ramls/schemas/SamlCheck.json"))
       .body("active", equalTo(Boolean.TRUE))
       .statusCode(200);
+    
+//  // with no csrf token cookie
+//  given()
+//    .header(TENANT_HEADER)
+//    .header(TOKEN_HEADER)
+//    .header(OKAPI_URL_HEADER)
+//    .get("/saml/check")
+//    .then()
+//    .statusCode(401);
+//  
+//  // login
+//  String csrfTokenCookie = given()
+//    .header(TENANT_HEADER)
+//    .header(TOKEN_HEADER)
+//    .header(OKAPI_URL_HEADER)
+//    .header(JSON_CONTENT_TYPE_HEADER)
+//    .body("{\"stripesUrl\":\"" + STRIPES_URL + "\"}")
+//    .post("/saml/login")
+//    .then()
+//    .log().all()
+//    .extract().cookie(Pac4jConstants.CSRF_TOKEN);
+//
+//  // with csrf token cookie but no header or param
+//  given()
+//    .header(TENANT_HEADER)
+//    .header(TOKEN_HEADER)
+//    .header(OKAPI_URL_HEADER)
+//    .cookie(Pac4jConstants.CSRF_TOKEN, csrfTokenCookie + "; Path=/; Domain=localhost")
+//    .get("/saml/check")
+//    .then()
+//    .statusCode(401);
+//  
+//  // valid, as param
+//  given()
+//    .header(TENANT_HEADER)
+//    .header(TOKEN_HEADER)
+//    .header(OKAPI_URL_HEADER)
+//    .formParam(Pac4jConstants.CSRF_TOKEN, csrfTokenCookie)
+//    .cookie(Pac4jConstants.CSRF_TOKEN, csrfTokenCookie + "; Path=/; Domain=localhost")
+//    .get("/saml/check")
+//    .then()
+//    .body(matchesJsonSchemaInClasspath("ramls/schemas/SamlCheck.json"))
+//    .body("active", equalTo(Boolean.TRUE))
+//    .statusCode(200);  
+//  
+//  // valid, as header
+//  given()
+//    .header(TENANT_HEADER)
+//    .header(TOKEN_HEADER)
+//    .header(OKAPI_URL_HEADER)
+//    .header(Pac4jConstants.CSRF_TOKEN, csrfTokenCookie)
+//    .cookie(Pac4jConstants.CSRF_TOKEN, csrfTokenCookie + "; Path=/; Domain=localhost")
+//    .get("/saml/check")
+//    .then()
+//    .body(matchesJsonSchemaInClasspath("ramls/schemas/SamlCheck.json"))
+//    .body("active", equalTo(Boolean.TRUE))
+//    .statusCode(200);
+//  
+//  // valid, as param and header
+//  given()
+//    .header(TENANT_HEADER)
+//    .header(TOKEN_HEADER)
+//    .header(OKAPI_URL_HEADER)
+//    .header(Pac4jConstants.CSRF_TOKEN, csrfTokenCookie)
+//    .formParam(Pac4jConstants.CSRF_TOKEN, csrfTokenCookie)
+//    .cookie(Pac4jConstants.CSRF_TOKEN, csrfTokenCookie + "; Path=/; Domain=localhost")
+//    .get("/saml/check")
+//    .then()
+//    .body(matchesJsonSchemaInClasspath("ramls/schemas/SamlCheck.json"))
+//    .body("active", equalTo(Boolean.TRUE))
+//    .statusCode(200); 
+//  
+//  // invalid, as param
+//  given()
+//    .header(TENANT_HEADER)
+//    .header(TOKEN_HEADER)
+//    .header(OKAPI_URL_HEADER)
+//    .formParam(Pac4jConstants.CSRF_TOKEN, UUID.randomUUID().toString())
+//    .cookie(Pac4jConstants.CSRF_TOKEN, csrfTokenCookie + "; Path=/; Domain=localhost")
+//    .get("/saml/check")
+//    .then()
+//    .statusCode(401); 
+//  
+//  // invalid, as header
+//  given()
+//    .header(TENANT_HEADER)
+//    .header(TOKEN_HEADER)
+//    .header(OKAPI_URL_HEADER)
+//    .header(Pac4jConstants.CSRF_TOKEN, UUID.randomUUID().toString())
+//    .cookie(Pac4jConstants.CSRF_TOKEN, csrfTokenCookie + "; Path=/; Domain=localhost")
+//    .get("/saml/check")
+//    .then()
+//    .statusCode(401);
+//  
+//  // invalid, as param and header
+//  given()
+//    .header(TENANT_HEADER)
+//    .header(TOKEN_HEADER)
+//    .header(OKAPI_URL_HEADER)
+//    .header(Pac4jConstants.CSRF_TOKEN, UUID.randomUUID().toString())
+//    .formParam(Pac4jConstants.CSRF_TOKEN, UUID.randomUUID().toString())
+//    .cookie(Pac4jConstants.CSRF_TOKEN, csrfTokenCookie + "; Path=/; Domain=localhost")
+//    .get("/saml/check")
+//    .then()
+//    .statusCode(401); 
+//  
+//  // valid param, invalid header
+//  given()
+//    .header(TENANT_HEADER)
+//    .header(TOKEN_HEADER)
+//    .header(OKAPI_URL_HEADER)
+//    .header(Pac4jConstants.CSRF_TOKEN, UUID.randomUUID().toString())
+//    .formParam(Pac4jConstants.CSRF_TOKEN, csrfTokenCookie)
+//    .cookie(Pac4jConstants.CSRF_TOKEN, csrfTokenCookie + "; Path=/; Domain=localhost")
+//    .get("/saml/check")
+//    .then()
+//    .body(matchesJsonSchemaInClasspath("ramls/schemas/SamlCheck.json"))
+//    .body("active", equalTo(Boolean.TRUE))
+//    .statusCode(200); 
+//  
+//  // invalid param, valid header
+//  given()
+//    .header(TENANT_HEADER)
+//    .header(TOKEN_HEADER)
+//    .header(OKAPI_URL_HEADER)
+//    .header(Pac4jConstants.CSRF_TOKEN, csrfTokenCookie)
+//    .formParam(Pac4jConstants.CSRF_TOKEN, UUID.randomUUID().toString())
+//    .cookie(Pac4jConstants.CSRF_TOKEN, csrfTokenCookie + "; Path=/; Domain=localhost")
+//    .get("/saml/check")
+//    .then()
+//    .body(matchesJsonSchemaInClasspath("ramls/schemas/SamlCheck.json"))
+//    .body("active", equalTo(Boolean.TRUE))
+//    .statusCode(200);
 
   }
 
@@ -106,17 +240,17 @@ public class SamlAPITest {
   public void loginEndpointTests() {
 
     // empty body
-    given()
-      .header(TENANT_HEADER)
-      .header(TOKEN_HEADER)
-      .header(OKAPI_URL_HEADER)
-      .header(JSON_CONTENT_TYPE_HEADER)
-      .post("/saml/login")
-      .then()
-      .statusCode(400);
+//    given()
+//      .header(TENANT_HEADER)
+//      .header(TOKEN_HEADER)
+//      .header(OKAPI_URL_HEADER)
+//      .header(JSON_CONTENT_TYPE_HEADER)
+//      .post("/saml/login")
+//      .then()
+//      .statusCode(400);
 
     // good
-    given()
+    ExtractableResponse<Response> loginResp = given()
       .header(TENANT_HEADER)
       .header(TOKEN_HEADER)
       .header(OKAPI_URL_HEADER)
@@ -128,8 +262,19 @@ public class SamlAPITest {
       .contentType(ContentType.JSON)
       .body(matchesJsonSchemaInClasspath("ramls/schemas/SamlLogin.json"))
       .body("bindingMethod", equalTo("POST"))
-      .body("relayState", equalTo(STRIPES_URL))
-      .statusCode(200);
+      .body("relayState", startsWith(STRIPES_URL+"?csrfToken="))
+      .statusCode(200)
+      .extract();
+    
+    System.out.println(loginResp.body().asString());
+    SamlLogin json = loginResp.body().as(SamlLogin.class);
+    given()
+      .formParam("SAMLRequest", json.getSamlRequest())
+      .formParam("RelayState", json.getRelayState())
+      .log().all()
+      .post(json.getLocation())      
+      .then()
+      .log().all();
 
   }
 
@@ -158,16 +303,29 @@ public class SamlAPITest {
 
     final String testPath = "/test/path";
 
+//  given()
+//    .header(TENANT_HEADER)
+//    .header(TOKEN_HEADER)
+//    .header(OKAPI_URL_HEADER)
+//    .formParam("SAMLResponse", "saml-response")
+//    .formParam("RelayState", STRIPES_URL + testPath)
+//    .post("/saml/callback")
+//    .then()
+//    .statusCode(302)
+//    .header("Location", containsString(URLEncoder.encode(testPath, "UTF-8")))
+//    .header("x-okapi-token", "saml-token")
+//    .cookie("ssoToken", "saml-token"); 
+    
     // with no csrf token cookie
-    given()
-      .header(TENANT_HEADER)
-      .header(TOKEN_HEADER)
-      .header(OKAPI_URL_HEADER)
-      .formParam("SAMLResponse", "saml-response")
-      .formParam("RelayState", STRIPES_URL + testPath)
-      .post("/saml/callback")
-      .then()
-      .statusCode(401);
+//    given()
+//      .header(TENANT_HEADER)
+//      .header(TOKEN_HEADER)
+//      .header(OKAPI_URL_HEADER)
+//      .formParam("SAMLResponse", "saml-response")
+//      .formParam("RelayState", STRIPES_URL + testPath)
+//      .post("/saml/callback")
+//      .then()
+//      .statusCode(401);
     
     // login
     String csrfTokenCookie = given()
@@ -178,19 +336,22 @@ public class SamlAPITest {
       .body("{\"stripesUrl\":\"" + STRIPES_URL + "\"}")
       .post("/saml/login")
       .then()
+      .log().all()
       .extract().cookie(Pac4jConstants.CSRF_TOKEN);
  
+    
+    
     // with csrf token cookie but no header or param
-    given()
-      .header(TENANT_HEADER)
-      .header(TOKEN_HEADER)
-      .header(OKAPI_URL_HEADER)
-      .formParam("SAMLResponse", "saml-response")
-      .formParam("RelayState", STRIPES_URL + testPath)
-      .cookie(Pac4jConstants.CSRF_TOKEN, csrfTokenCookie + "; Path=/; Domain=localhost")
-      .post("/saml/callback")
-      .then()
-      .statusCode(401);
+//    given()
+//      .header(TENANT_HEADER)
+//      .header(TOKEN_HEADER)
+//      .header(OKAPI_URL_HEADER)
+//      .formParam("SAMLResponse", "saml-response")
+//      .formParam("RelayState", STRIPES_URL + testPath)
+//      .cookie(Pac4jConstants.CSRF_TOKEN, csrfTokenCookie + "; Path=/; Domain=localhost")
+//      .post("/saml/callback")
+//      .then()
+//      .statusCode(401);
     
     // valid, as param
     given()
@@ -203,117 +364,118 @@ public class SamlAPITest {
       .cookie(Pac4jConstants.CSRF_TOKEN, csrfTokenCookie + "; Path=/; Domain=localhost")
       .post("/saml/callback")
       .then()
+      .log().all()
       .statusCode(302)
       .header("Location", containsString(URLEncoder.encode(testPath, "UTF-8")))
       .header("x-okapi-token", "saml-token")
       .cookie("ssoToken", "saml-token");    
     
     // valid, as header
-    given()
-      .header(TENANT_HEADER)
-      .header(TOKEN_HEADER)
-      .header(OKAPI_URL_HEADER)
-      .formParam("SAMLResponse", "saml-response")
-      .formParam("RelayState", STRIPES_URL + testPath)
-      .header(Pac4jConstants.CSRF_TOKEN, csrfTokenCookie)
-      .cookie(Pac4jConstants.CSRF_TOKEN, csrfTokenCookie + "; Path=/; Domain=localhost")
-      .post("/saml/callback")
-      .then()
-      .statusCode(302)
-      .header("Location", containsString(URLEncoder.encode(testPath, "UTF-8")))
-      .header("x-okapi-token", "saml-token")
-      .cookie("ssoToken", "saml-token");
-    
-    // valid, as param and header
-    given()
-      .header(TENANT_HEADER)
-      .header(TOKEN_HEADER)
-      .header(OKAPI_URL_HEADER)
-      .header(Pac4jConstants.CSRF_TOKEN, csrfTokenCookie)
-      .formParam("SAMLResponse", "saml-response")
-      .formParam("RelayState", STRIPES_URL + testPath)
-      .formParam(Pac4jConstants.CSRF_TOKEN, csrfTokenCookie)
-      .cookie(Pac4jConstants.CSRF_TOKEN, csrfTokenCookie + "; Path=/; Domain=localhost")
-      .post("/saml/callback")
-      .then()
-      .statusCode(302)
-      .header("Location", containsString(URLEncoder.encode(testPath, "UTF-8")))
-      .header("x-okapi-token", "saml-token")
-      .cookie("ssoToken", "saml-token");    
-    
-    // invalid, as param
-    given()
-      .header(TENANT_HEADER)
-      .header(TOKEN_HEADER)
-      .header(OKAPI_URL_HEADER)
-      .formParam("SAMLResponse", "saml-response")
-      .formParam("RelayState", STRIPES_URL + testPath)
-      .formParam(Pac4jConstants.CSRF_TOKEN, UUID.randomUUID().toString())
-      .cookie(Pac4jConstants.CSRF_TOKEN, csrfTokenCookie + "; Path=/; Domain=localhost")
-      .post("/saml/callback")
-      .then()
-      .statusCode(401);   
-    
-    // invalid, as header
-    given()
-      .header(TENANT_HEADER)
-      .header(TOKEN_HEADER)
-      .header(OKAPI_URL_HEADER)
-      .formParam("SAMLResponse", "saml-response")
-      .formParam("RelayState", STRIPES_URL + testPath)
-      .header(Pac4jConstants.CSRF_TOKEN, UUID.randomUUID().toString())
-      .cookie(Pac4jConstants.CSRF_TOKEN, csrfTokenCookie + "; Path=/; Domain=localhost")
-      .post("/saml/callback")
-      .then()
-      .statusCode(401); 
-    
-    // invalid, as param and header
-    given()
-      .header(TENANT_HEADER)
-      .header(TOKEN_HEADER)
-      .header(OKAPI_URL_HEADER)
-      .header(Pac4jConstants.CSRF_TOKEN, UUID.randomUUID().toString())
-      .formParam("SAMLResponse", "saml-response")
-      .formParam("RelayState", STRIPES_URL + testPath)
-      .formParam(Pac4jConstants.CSRF_TOKEN, UUID.randomUUID().toString())
-      .cookie(Pac4jConstants.CSRF_TOKEN, csrfTokenCookie + "; Path=/; Domain=localhost")
-      .post("/saml/callback")
-      .then()
-      .statusCode(401);    
-    
-    // valid param, invalid header
-    given()
-      .header(TENANT_HEADER)
-      .header(TOKEN_HEADER)
-      .header(OKAPI_URL_HEADER)
-      .header(Pac4jConstants.CSRF_TOKEN, UUID.randomUUID().toString())
-      .formParam("SAMLResponse", "saml-response")
-      .formParam("RelayState", STRIPES_URL + testPath)
-      .formParam(Pac4jConstants.CSRF_TOKEN, csrfTokenCookie)
-      .cookie(Pac4jConstants.CSRF_TOKEN, csrfTokenCookie + "; Path=/; Domain=localhost")
-      .post("/saml/callback")
-      .then()
-      .statusCode(302)
-      .header("Location", containsString(URLEncoder.encode(testPath, "UTF-8")))
-      .header("x-okapi-token", "saml-token")
-      .cookie("ssoToken", "saml-token");   
-    
-    // invalid param, valid header
-    given()
-      .header(TENANT_HEADER)
-      .header(TOKEN_HEADER)
-      .header(OKAPI_URL_HEADER)
-      .header(Pac4jConstants.CSRF_TOKEN, csrfTokenCookie)
-      .formParam("SAMLResponse", "saml-response")
-      .formParam("RelayState", STRIPES_URL + testPath)
-      .formParam(Pac4jConstants.CSRF_TOKEN, UUID.randomUUID().toString())
-      .cookie(Pac4jConstants.CSRF_TOKEN, csrfTokenCookie + "; Path=/; Domain=localhost")
-      .post("/saml/callback")
-      .then()
-      .statusCode(302)
-      .header("Location", containsString(URLEncoder.encode(testPath, "UTF-8")))
-      .header("x-okapi-token", "saml-token")
-      .cookie("ssoToken", "saml-token");       
+//    given()
+//      .header(TENANT_HEADER)
+//      .header(TOKEN_HEADER)
+//      .header(OKAPI_URL_HEADER)
+//      .formParam("SAMLResponse", "saml-response")
+//      .formParam("RelayState", STRIPES_URL + testPath)
+//      .header(Pac4jConstants.CSRF_TOKEN, csrfTokenCookie)
+//      .cookie(Pac4jConstants.CSRF_TOKEN, csrfTokenCookie + "; Path=/; Domain=localhost")
+//      .post("/saml/callback")
+//      .then()
+//      .statusCode(302)
+//      .header("Location", containsString(URLEncoder.encode(testPath, "UTF-8")))
+//      .header("x-okapi-token", "saml-token")
+//      .cookie("ssoToken", "saml-token");
+//    
+//    // valid, as param and header
+//    given()
+//      .header(TENANT_HEADER)
+//      .header(TOKEN_HEADER)
+//      .header(OKAPI_URL_HEADER)
+//      .header(Pac4jConstants.CSRF_TOKEN, csrfTokenCookie)
+//      .formParam("SAMLResponse", "saml-response")
+//      .formParam("RelayState", STRIPES_URL + testPath)
+//      .formParam(Pac4jConstants.CSRF_TOKEN, csrfTokenCookie)
+//      .cookie(Pac4jConstants.CSRF_TOKEN, csrfTokenCookie + "; Path=/; Domain=localhost")
+//      .post("/saml/callback")
+//      .then()
+//      .statusCode(302)
+//      .header("Location", containsString(URLEncoder.encode(testPath, "UTF-8")))
+//      .header("x-okapi-token", "saml-token")
+//      .cookie("ssoToken", "saml-token");    
+//    
+//    // invalid, as param
+//    given()
+//      .header(TENANT_HEADER)
+//      .header(TOKEN_HEADER)
+//      .header(OKAPI_URL_HEADER)
+//      .formParam("SAMLResponse", "saml-response")
+//      .formParam("RelayState", STRIPES_URL + testPath)
+//      .formParam(Pac4jConstants.CSRF_TOKEN, UUID.randomUUID().toString())
+//      .cookie(Pac4jConstants.CSRF_TOKEN, csrfTokenCookie + "; Path=/; Domain=localhost")
+//      .post("/saml/callback")
+//      .then()
+//      .statusCode(401);   
+//    
+//    // invalid, as header
+//    given()
+//      .header(TENANT_HEADER)
+//      .header(TOKEN_HEADER)
+//      .header(OKAPI_URL_HEADER)
+//      .formParam("SAMLResponse", "saml-response")
+//      .formParam("RelayState", STRIPES_URL + testPath)
+//      .header(Pac4jConstants.CSRF_TOKEN, UUID.randomUUID().toString())
+//      .cookie(Pac4jConstants.CSRF_TOKEN, csrfTokenCookie + "; Path=/; Domain=localhost")
+//      .post("/saml/callback")
+//      .then()
+//      .statusCode(401); 
+//    
+//    // invalid, as param and header
+//    given()
+//      .header(TENANT_HEADER)
+//      .header(TOKEN_HEADER)
+//      .header(OKAPI_URL_HEADER)
+//      .header(Pac4jConstants.CSRF_TOKEN, UUID.randomUUID().toString())
+//      .formParam("SAMLResponse", "saml-response")
+//      .formParam("RelayState", STRIPES_URL + testPath)
+//      .formParam(Pac4jConstants.CSRF_TOKEN, UUID.randomUUID().toString())
+//      .cookie(Pac4jConstants.CSRF_TOKEN, csrfTokenCookie + "; Path=/; Domain=localhost")
+//      .post("/saml/callback")
+//      .then()
+//      .statusCode(401);    
+//    
+//    // valid param, invalid header
+//    given()
+//      .header(TENANT_HEADER)
+//      .header(TOKEN_HEADER)
+//      .header(OKAPI_URL_HEADER)
+//      .header(Pac4jConstants.CSRF_TOKEN, UUID.randomUUID().toString())
+//      .formParam("SAMLResponse", "saml-response")
+//      .formParam("RelayState", STRIPES_URL + testPath)
+//      .formParam(Pac4jConstants.CSRF_TOKEN, csrfTokenCookie)
+//      .cookie(Pac4jConstants.CSRF_TOKEN, csrfTokenCookie + "; Path=/; Domain=localhost")
+//      .post("/saml/callback")
+//      .then()
+//      .statusCode(302)
+//      .header("Location", containsString(URLEncoder.encode(testPath, "UTF-8")))
+//      .header("x-okapi-token", "saml-token")
+//      .cookie("ssoToken", "saml-token");   
+//    
+//    // invalid param, valid header
+//    given()
+//      .header(TENANT_HEADER)
+//      .header(TOKEN_HEADER)
+//      .header(OKAPI_URL_HEADER)
+//      .header(Pac4jConstants.CSRF_TOKEN, csrfTokenCookie)
+//      .formParam("SAMLResponse", "saml-response")
+//      .formParam("RelayState", STRIPES_URL + testPath)
+//      .formParam(Pac4jConstants.CSRF_TOKEN, UUID.randomUUID().toString())
+//      .cookie(Pac4jConstants.CSRF_TOKEN, csrfTokenCookie + "; Path=/; Domain=localhost")
+//      .post("/saml/callback")
+//      .then()
+//      .statusCode(302)
+//      .header("Location", containsString(URLEncoder.encode(testPath, "UTF-8")))
+//      .header("x-okapi-token", "saml-token")
+//      .cookie("ssoToken", "saml-token");       
     
   }
 

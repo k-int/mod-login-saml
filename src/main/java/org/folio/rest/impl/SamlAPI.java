@@ -8,6 +8,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import javax.ws.rs.core.NewCookie;
 import javax.ws.rs.core.Response;
@@ -40,7 +42,6 @@ import org.folio.util.VertxUtils;
 import org.folio.util.model.OkapiHeaders;
 import org.folio.util.model.UrlCheckResult;
 import org.pac4j.core.authorization.authorizer.csrf.CsrfAuthorizer;
-import org.pac4j.core.authorization.authorizer.csrf.CsrfTokenGeneratorAuthorizer;
 import org.pac4j.core.authorization.authorizer.csrf.DefaultCsrfTokenGenerator;
 import org.pac4j.core.context.Pac4jConstants;
 import org.pac4j.core.context.WebContext;
@@ -87,6 +88,29 @@ public class SamlAPI implements Saml {
   public void getSamlCheck(RoutingContext routingContext, Map<String, String> okapiHeaders,
                            Handler<AsyncResult<Response>> asyncResultHandler, Context vertxContext) {
 
+//    Session session;
+//    Cookie csrfTokenCookie = routingContext.getCookie(Pac4jConstants.CSRF_TOKEN);
+//    if(csrfTokenCookie != null) {
+//      session = new SharedDataSessionImpl(new PRNG(vertxContext.owner()));      
+//      session.put(Pac4jConstants.CSRF_TOKEN, csrfTokenCookie.getValue());
+//    } else {
+//      session = new NoopSession();
+//    }
+//    routingContext.setSession(session);
+//    
+//    final VertxWebContext webContext = VertxUtils.createWebContext(routingContext);
+//    CsrfAuthorizer csrfAuth = new CsrfAuthorizer();
+//    csrfAuth.setOnlyCheckPostRequest(false);
+//    try {
+//      if(!csrfAuth.isAuthorized(webContext, null)) {
+//        asyncResultHandler.handle(Future.succeededFuture(PostSamlCallbackResponse.respond401WithTextPlain("CSRF attack")));
+//        return;
+//      }
+//    } catch (HttpAction e2) {
+//      asyncResultHandler.handle(Future.succeededFuture(PostSamlCallbackResponse.respond401WithTextPlain("CSRF attack")));
+//      return;
+//    }
+    
     findSaml2Client(routingContext, false, false)
       .setHandler(samlClientHandler -> {
         if (samlClientHandler.failed()) {
@@ -106,28 +130,35 @@ public class SamlAPI implements Saml {
 
     // register non-persistent session (this request only) to overWrite relayState
     Session session = new SharedDataSessionImpl(new PRNG(vertxContext.owner()));
-    session.put("samlRelayState", stripesUrl);
     routingContext.setSession(session);
     
     findSaml2Client(routingContext, false, false) // do not allow login, if config is missing
       .setHandler(samlClientHandler -> {
         WebContext webContext = VertxUtils.createWebContext(routingContext);
         
-        CsrfTokenGeneratorAuthorizer csrfTokenAuth = new CsrfTokenGeneratorAuthorizer(new DefaultCsrfTokenGenerator());
-        csrfTokenAuth.setPath("");
-        csrfTokenAuth.setDomain(routingContext.request().host());
-        
-        try {
-          csrfTokenAuth.isAuthorized(webContext, null);
-        } catch (HttpAction e) {
-          log.warn("Problem adding CSRF token", e);
+        Pattern justDomain = Pattern.compile("(.*):.*");
+        Matcher m = justDomain.matcher(routingContext.request().host());
+        String domain;
+        if(m.matches()) {
+          domain = m.group(1);
+        } else {
+          domain = routingContext.request().host();
         }
+        
+        String csrfToken = new DefaultCsrfTokenGenerator().get(webContext);
+        Cookie cookie = Cookie.cookie("csrfToken", csrfToken);
+        cookie.setPath("/");
+        cookie.setDomain(domain);
+        cookie.setHttpOnly(true);
+        cookie.setSecure(true);
+        routingContext.addCookie(cookie);
+        session.put("samlRelayState", stripesUrl + "?csrfToken=" + csrfToken);
 
         Response response;
         if (samlClientHandler.succeeded()) {
           SAML2Client saml2Client = samlClientHandler.result().getClient();
           try {
-            RedirectAction redirectAction = saml2Client.getRedirectAction(VertxUtils.createWebContext(routingContext));
+            RedirectAction redirectAction = saml2Client.getRedirectAction(webContext);
             String responseJsonString = redirectAction.getContent();
             SamlLogin dto = Json.decodeValue(responseJsonString, SamlLogin.class);
             routingContext.response().headers().clear(); // saml2Client sets Content-Type: text/html header
@@ -159,17 +190,17 @@ public class SamlAPI implements Saml {
     routingContext.setSession(session);
     
     final VertxWebContext webContext = VertxUtils.createWebContext(routingContext);
-    CsrfAuthorizer csrfAuth = new CsrfAuthorizer();
-    csrfAuth.setOnlyCheckPostRequest(false);
-    try {
-      if(!csrfAuth.isAuthorized(webContext, null)) {
-        asyncResultHandler.handle(Future.succeededFuture(PostSamlCallbackResponse.respond401WithTextPlain("CSRF attack")));
-        return;
-      }
-    } catch (HttpAction e2) {
-      asyncResultHandler.handle(Future.succeededFuture(PostSamlCallbackResponse.respond401WithTextPlain("CSRF attack")));
-      return;
-    }
+//    CsrfAuthorizer csrfAuth = new CsrfAuthorizer();
+//    csrfAuth.setOnlyCheckPostRequest(false);
+//    try {
+//      if(!csrfAuth.isAuthorized(webContext, null)) {
+//        asyncResultHandler.handle(Future.succeededFuture(PostSamlCallbackResponse.respond401WithTextPlain("CSRF attack")));
+//        return;
+//      }
+//    } catch (HttpAction e2) {
+//      asyncResultHandler.handle(Future.succeededFuture(PostSamlCallbackResponse.respond401WithTextPlain("CSRF attack")));
+//      return;
+//    }
 
     final String relayState = webContext.getRequestParameter("RelayState"); // There is no better way to get RelayState.
     URI relayStateUrl = null;
