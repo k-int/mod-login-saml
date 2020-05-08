@@ -135,15 +135,23 @@ public class SamlAPI implements Saml {
     findSaml2Client(routingContext, false, false) // do not allow login, if config is missing
       .setHandler(samlClientHandler -> {
         WebContext webContext = VertxUtils.createWebContext(routingContext);
+ 
         
-        Pattern justDomain = Pattern.compile("(.*):.*");
-        Matcher m = justDomain.matcher(routingContext.request().host());
         String domain;
-        if(m.matches()) {
-          domain = m.group(1);
-        } else {
-          domain = routingContext.request().host();
+        try {
+          URI uri = new URI(routingContext.request().uri());
+          domain = uri.getHost();
+        } catch (URISyntaxException e) {
+          domain = "";
         }
+//        Pattern justDomain = Pattern.compile("(.*):.*");
+//        Matcher m = justDomain.matcher(routingContext.request().host());
+//        String domain;
+//        if(m.matches()) {
+//          domain = m.group(1);
+//        } else {
+//          domain = routingContext.request().host();
+//        }
         
         String csrfToken = new DefaultCsrfTokenGenerator().get(webContext);
         Cookie cookie = Cookie.cookie("csrfToken", csrfToken);
