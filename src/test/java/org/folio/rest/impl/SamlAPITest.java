@@ -337,7 +337,7 @@ public class SamlAPITest {
       .post("/saml/login")
       .then()
       .log().all()
-      .extract().cookie(Pac4jConstants.CSRF_TOKEN);
+      .extract().cookie("csrfToken");
  
     
     
@@ -359,9 +359,8 @@ public class SamlAPITest {
       .header(TOKEN_HEADER)
       .header(OKAPI_URL_HEADER)
       .formParam("SAMLResponse", "saml-response")
-      .formParam("RelayState", STRIPES_URL + testPath)
-      .formParam(Pac4jConstants.CSRF_TOKEN, csrfTokenCookie)
-      .cookie(Pac4jConstants.CSRF_TOKEN, csrfTokenCookie + "; Path=/; Domain=localhost")
+      .formParam("RelayState", STRIPES_URL + testPath + "?csrfToken=" + csrfTokenCookie)
+      .cookie("csrfToken", csrfTokenCookie + "; Path=/; Domain=localhost")
       .post("/saml/callback")
       .then()
       .log().all()
