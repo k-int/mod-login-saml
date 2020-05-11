@@ -141,20 +141,18 @@ public class SamlAPI implements Saml {
           SamlClientComposite composite = samlClientHandler.result();
           SAML2Client saml2Client = composite.getClient();          
           
-          String domain;
-          try {
-            URI uri = new URI(composite.getConfiguration().getOkapiUrl());
-            domain = uri.getHost();
-          } catch (URISyntaxException e) {
-            domain = "";
-          }
+//          String domain;
+//          try {
+//            URI uri = new URI(composite.getConfiguration().getOkapiUrl());
+//            domain = uri.getHost();
+//          } catch (URISyntaxException e) {
+//            domain = "";
+//          }
           
           String csrfToken = new DefaultCsrfTokenGenerator().get(webContext);
           Cookie cookie = Cookie.cookie("csrfToken", csrfToken);
-          cookie.setPath("/");
-          cookie.setDomain(domain);
-          cookie.setHttpOnly(true);
-          cookie.setSecure(true);
+//          cookie.setPath("/");
+//          cookie.setDomain(domain);
           routingContext.addCookie(cookie);
           session.put("samlRelayState", stripesUrl + "?csrfToken=" + csrfToken);
           
