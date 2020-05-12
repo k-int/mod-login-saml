@@ -142,14 +142,11 @@ public class SamlAPI implements Saml {
           SAML2Client saml2Client = composite.getClient();          
           
           String domain;
-          String origin;
           try {
             URI uri = new URI(composite.getConfiguration().getOkapiUrl());
             domain = uri.getHost();
-            origin = uri.getScheme() + "://" + uri.getHost();
           } catch (URISyntaxException e) {
             domain = "";
-            origin = "";
           }
           
           String csrfToken = new DefaultCsrfTokenGenerator().get(webContext);
@@ -164,7 +161,6 @@ public class SamlAPI implements Saml {
             String responseJsonString = redirectAction.getContent();
             SamlLogin dto = Json.decodeValue(responseJsonString, SamlLogin.class);
             routingContext.response().headers().clear(); // saml2Client sets Content-Type: text/html header
-            routingContext.response().headers().set("Access-Control-Allow-Origin", origin);
             response = PostSamlLoginResponse.respond200WithApplicationJson(dto);
           } catch (HttpAction httpAction) {
             response = HttpActionMapper.toResponse(httpAction);
