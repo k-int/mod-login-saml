@@ -141,18 +141,21 @@ public class SamlAPI implements Saml {
           SamlClientComposite composite = samlClientHandler.result();
           SAML2Client saml2Client = composite.getClient();          
           
-//          String domain;
-//          try {
-//            URI uri = new URI(composite.getConfiguration().getOkapiUrl());
-//            domain = uri.getHost();
-//          } catch (URISyntaxException e) {
-//            domain = "";
-//          }
+          String domain;
+          String origin;
+          try {
+            URI uri = new URI(composite.getConfiguration().getOkapiUrl());
+            domain = uri.getHost();
+            origin = uri.getScheme() + "://" + uri.getHost();
+          } catch (URISyntaxException e) {
+            domain = "";
+            origin = "";
+          }
           
           String csrfToken = new DefaultCsrfTokenGenerator().get(webContext);
           Cookie cookie = Cookie.cookie("csrfToken", csrfToken);
-//          cookie.setPath("/");
-//          cookie.setDomain(domain);
+          cookie.setPath("/");
+          cookie.setDomain(domain);
           routingContext.addCookie(cookie);
           session.put("samlRelayState", stripesUrl + "?csrfToken=" + csrfToken);
           
@@ -161,6 +164,7 @@ public class SamlAPI implements Saml {
             String responseJsonString = redirectAction.getContent();
             SamlLogin dto = Json.decodeValue(responseJsonString, SamlLogin.class);
             routingContext.response().headers().clear(); // saml2Client sets Content-Type: text/html header
+            routingContext.response().headers().set("Access-Control-Allow-Origin", origin);
             response = PostSamlLoginResponse.respond200WithApplicationJson(dto);
           } catch (HttpAction httpAction) {
             response = HttpActionMapper.toResponse(httpAction);
