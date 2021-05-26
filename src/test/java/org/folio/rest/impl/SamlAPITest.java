@@ -448,16 +448,17 @@ public class SamlAPITest {
           .putHeader(XOkapiHeaders.TOKEN, TENANT)
           .putHeader(XOkapiHeaders.URL, "http://localhost:9130")
           .putHeader("Cookie", "csrfToken=" + csrfToken)
-          .sendHead();
-        clientRequest
-          .send("SAMLResponse=saml-response&RelayState=" + URLEncoder.encode(relayState, StandardCharsets.UTF_8))
-          .onComplete(context.asyncAssertSuccess(res -> {
-            context.assertEquals(302, res.statusCode());
-            context.assertTrue(res.getHeader("Location").contains(URLEncoder.encode(testPath, StandardCharsets.UTF_8)));
-            context.assertEquals("saml-token", res.getHeader("x-okapi-token"));
-          }));
+          .sendHead()
+          .onComplete(context.asyncAssertSuccess(x ->
+            clientRequest
+              .send("SAMLResponse=saml-response&RelayState=" + URLEncoder.encode(relayState, StandardCharsets.UTF_8))
+              .onComplete(context.asyncAssertSuccess(res -> {
+                context.assertEquals(302, res.statusCode());
+                context.assertTrue(res.getHeader("Location").contains(URLEncoder.encode(testPath, StandardCharsets.UTF_8)));
+                context.assertEquals("saml-token", res.getHeader("x-okapi-token"));
+              }))
+          ));
       }));
-
   }
 
   @Test
