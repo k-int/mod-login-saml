@@ -10,13 +10,16 @@ import static org.junit.Assert.assertNotEquals;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URLEncoder;
-
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
 import java.nio.charset.StandardCharsets;
 import java.util.Optional;
+
+import io.vertx.core.http.HttpClient;
+import io.vertx.core.http.HttpMethod;
+import io.vertx.core.http.RequestOptions;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.folio.config.SamlConfigHolder;
+import org.folio.okapi.common.XOkapiHeaders;
 import org.folio.rest.RestVerticle;
 import org.folio.rest.jaxrs.model.SamlConfigRequest;
 import org.folio.rest.tools.client.test.HttpClientMock2;
@@ -383,7 +386,7 @@ public class SamlAPITest {
   }
 
   @Test
-  public void callbackEndpointTests() throws IOException {
+  public void callbackEndpointTests(TestContext context) throws IOException {
     final String testPath = "/test/path";
 
     log.info("=== Setup - POST /saml/login - need relayState and csrfToken cookie ===");
@@ -431,6 +434,30 @@ public class SamlAPITest {
       .post("/saml/callback")
       .then()
       .statusCode(403);
+
+    log.info("=== Test - POST /saml/callback chunked encoding - success ===");
+    HttpClient httpClient = vertx.createHttpClient();
+    httpClient.request(new RequestOptions()
+      .setMethod(HttpMethod.POST)
+      .setAbsoluteURI("http://localhost:" + PORT + "/saml/callback"))
+      .onComplete(context.asyncAssertSuccess(clientRequest -> {
+        clientRequest
+          .setChunked(true)
+          .putHeader("Content-Type", "application/x-www-form-urlencoded")
+          .putHeader(XOkapiHeaders.TENANT, TENANT)
+          .putHeader(XOkapiHeaders.TOKEN, TENANT)
+          .putHeader(XOkapiHeaders.URL, "http://localhost:9130")
+          .putHeader("Cookie", "csrfToken=" + csrfToken)
+          .sendHead();
+        clientRequest
+          .send("SAMLResponse=saml-response&RelayState=" + URLEncoder.encode(relayState, StandardCharsets.UTF_8))
+          .onComplete(context.asyncAssertSuccess(res -> {
+            context.assertEquals(302, res.statusCode());
+            context.assertTrue(res.getHeader("Location").contains(URLEncoder.encode(testPath, StandardCharsets.UTF_8)));
+            context.assertEquals("saml-token", res.getHeader("x-okapi-token"));
+          }));
+      }));
+
   }
 
   @Test
