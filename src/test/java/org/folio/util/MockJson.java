@@ -11,6 +11,7 @@ import io.vertx.ext.web.RoutingContext;
 import org.apache.commons.io.IOUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.folio.okapi.common.XOkapiHeaders;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -18,13 +19,12 @@ import java.nio.charset.StandardCharsets;
 public class MockJson extends AbstractVerticle {
   private static final Logger log = LogManager.getLogger(MockJson.class);
 
-  JsonArray mocks;
+  JsonObject config;
   String resource;
 
   public void setMockContent(String resource) throws IOException {
     this.resource = resource;
-    JsonObject config = new JsonObject(IOUtils.toString(MockJson.class.getClassLoader().getResourceAsStream(resource), StandardCharsets.UTF_8));
-    mocks = config.getJsonArray("mocks");
+    this.config = new JsonObject(IOUtils.toString(MockJson.class.getClassLoader().getResourceAsStream(resource), StandardCharsets.UTF_8));
   }
 
   private void handle(RoutingContext context) {
@@ -32,6 +32,15 @@ public class MockJson extends AbstractVerticle {
     HttpServerResponse response = context.response();
     String method = request.method().name();
     String uri = request.uri();
+    String tenantId = request.getHeader(XOkapiHeaders.TENANT);
+    JsonArray mocks = config.getJsonArray(tenantId);
+    if (mocks == null) {
+      response.setStatusCode(400);
+      response.putHeader("Content-Type", "text/plain");
+      response.end("Mock: no such tenant: " + tenantId);
+      log.info("mockJson: no uri={} such tenant: {}", uri, tenantId);
+      return;
+    }
     for (int i = 0; i < mocks.size(); i++) {
       JsonObject entry = mocks.getJsonObject(i);
       if (method.equalsIgnoreCase(entry.getString("method", "get"))
@@ -45,6 +54,7 @@ public class MockJson extends AbstractVerticle {
           }
         }
         JsonObject responseData = entry.getJsonObject("receivedData");
+        log.info("Returning from mock={} uri={}", resource, uri);
         if (responseData != null) {
           response.putHeader("Content-Type", "application/json");
           response.end(responseData.encodePrettily());

@@ -10,13 +10,14 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 import java.io.IOException;
 import java.net.URI;
+import java.util.List;
+import java.util.Optional;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.nio.charset.StandardCharsets;
-import java.util.Optional;
 import org.folio.config.SamlConfigHolder;
+import org.folio.okapi.common.XOkapiHeaders;
 import org.folio.rest.RestVerticle;
 import org.folio.rest.jaxrs.model.SamlConfigRequest;
 import org.folio.rest.tools.utils.NetworkUtils;
@@ -178,6 +179,50 @@ public class SamlAPITest {
       .post("/saml/login")
       .then()
       .statusCode(400);
+  }
+
+  @Test
+  public void multiTenant() throws IOException {
+    mock.setMockContent("mock_tenant12.json");
+    for (String tenant : List.of("tenant1", "tenant2")) {
+      ExtractableResponse<Response> resp = given()
+        .header(XOkapiHeaders.TENANT, tenant)
+        .header(XOkapiHeaders.TOKEN, tenant)
+        .header(OKAPI_URL_HEADER)
+        .header(JSON_CONTENT_TYPE_HEADER)
+        .body("{\"stripesUrl\":\"" + STRIPES_URL + "\"}")
+        .post("/saml/login")
+        .then()
+        .contentType(ContentType.JSON)
+        .body(matchesJsonSchemaInClasspath("ramls/schemas/SamlLogin.json"))
+        .body("bindingMethod", equalTo("POST"))
+        .statusCode(200)
+        .extract();
+
+      String cookie = resp.cookie(SamlAPI.RELAY_STATE);
+      String relayState = resp.body().jsonPath().getString(SamlAPI.RELAY_STATE);
+      assertEquals(cookie, relayState);
+    }
+
+    for (String tenant : List.of("tenant1", "tenant2")) {
+      ExtractableResponse<Response> resp = given()
+        .header(XOkapiHeaders.TENANT, tenant)
+        .header(XOkapiHeaders.TOKEN, tenant)
+        .header(OKAPI_URL_HEADER)
+        .header(JSON_CONTENT_TYPE_HEADER)
+        .body("{\"stripesUrl\":\"" + STRIPES_URL + "\"}")
+        .post("/saml/login")
+        .then()
+        .contentType(ContentType.JSON)
+        .body(matchesJsonSchemaInClasspath("ramls/schemas/SamlLogin.json"))
+        .body("bindingMethod", equalTo("POST"))
+        .statusCode(200)
+        .extract();
+
+      String cookie = resp.cookie(SamlAPI.RELAY_STATE);
+      String relayState = resp.body().jsonPath().getString(SamlAPI.RELAY_STATE);
+      assertEquals(cookie, relayState);
+    }
   }
 
   @Test

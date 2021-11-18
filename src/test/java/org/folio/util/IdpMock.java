@@ -42,6 +42,7 @@ public class IdpMock extends AbstractVerticle {
   }
 
   private void handle(RoutingContext context, String contentType) {
+    log.info("AD: idpMock returning {}", contentType);
     try {
       String idpMetadata = readMockData();
       context.response()

@@ -1,5 +1,5 @@
 {
-  "mocks": [
+  "saml-test": [
     {
       "url": "/users?query=externalSystemId%3D%3D%22saml-user-id%22",
       "method": "get",
