@@ -69,6 +69,7 @@ import io.vertx.core.Handler;
 import io.vertx.core.Promise;
 import io.vertx.core.Vertx;
 import io.vertx.core.http.Cookie;
+import io.vertx.core.http.CookieSameSite;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.http.HttpServerResponse;
@@ -117,7 +118,7 @@ public class SamlAPI implements Saml {
     String stripesUrl = requestEntity.getStripesUrl();
     String relayState = stripesUrl + (stripesUrl.indexOf('?') >= 0 ? '&' : '?') + CSRF_TOKEN + '=' + csrfToken;
     Cookie relayStateCookie = Cookie.cookie(RELAY_STATE, relayState)
-        .setPath("/").setHttpOnly(true).setSecure(true);
+        .setPath("/").setHttpOnly(true).setSecure(true).setSameSite(CookieSameSite.NONE);
     routingContext.addCookie(relayStateCookie);
 
 
