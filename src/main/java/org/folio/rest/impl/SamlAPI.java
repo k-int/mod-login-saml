@@ -118,7 +118,7 @@ public class SamlAPI implements Saml {
     String stripesUrl = requestEntity.getStripesUrl();
     String relayState = stripesUrl + (stripesUrl.indexOf('?') >= 0 ? '&' : '?') + CSRF_TOKEN + '=' + csrfToken;
     Cookie relayStateCookie = Cookie.cookie(RELAY_STATE, relayState)
-        .setPath("/").setHttpOnly(true).setSecure(true).setSameSite(CookieSameSite.NONE);
+        .setPath("/").setHttpOnly(true).setSecure(true).setSameSite(CookieSameSite.NONE).setMaxAge(120);
     routingContext.addCookie(relayStateCookie);
 
 
