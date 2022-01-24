@@ -89,12 +89,16 @@ public class SamlAPI implements Saml {
   public static final String RELAY_STATE = "relayState";
 
   public static class UserErrorException extends RuntimeException {
+    private static final long serialVersionUID = -3315822475869189017L;
+
     public UserErrorException(String message) {
       super(message);
     }
   }
 
   public static class ForbiddenException extends RuntimeException {
+    private static final long serialVersionUID = -1475353492294389849L;
+
     public ForbiddenException(String message) {
       super(message);
     }
