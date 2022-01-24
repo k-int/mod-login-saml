@@ -9,6 +9,8 @@ import org.apache.commons.lang3.StringUtils;
 import org.folio.config.model.SAML2ClientMock;
 import org.folio.config.model.SamlClientComposite;
 import org.folio.config.model.SamlConfiguration;
+import org.folio.sso.saml.ExtendedSamlClient;
+import org.folio.sso.saml.metadata.FederationIdentityProviderMetadataResolver;
 import org.folio.util.OkapiHelper;
 import org.folio.util.model.OkapiHeaders;
 import org.opensaml.saml.common.xml.SAMLConstants;
@@ -173,6 +175,9 @@ public class SamlClientLoader {
 
   private static SAML2Client assembleSaml2Client(String okapiUrl, String tenantId, SAML2Configuration cfg,
     String samlBinding, Context vertxContext) {
+        cfg.setIdentityProviderMetadataResolver(
+        new FederationIdentityProviderMetadataResolver(cfg.getIdentityProviderMetadataResource(), cfg.getIdentityProviderEntityId(), tenantId)
+    );
 
     if ("REDIRECT".equals(samlBinding)) {
       cfg.setAuthnRequestBindingType(SAMLConstants.SAML2_REDIRECT_BINDING_URI);
@@ -182,7 +187,7 @@ public class SamlClientLoader {
     }
 
     Boolean mock = vertxContext.config().getBoolean("mock", false);
-    SAML2Client saml2Client = Boolean.TRUE.equals(mock) ? new SAML2ClientMock(cfg) : new SAML2Client(cfg);
+    SAML2Client saml2Client = Boolean.TRUE.equals(mock) ? new SAML2ClientMock(cfg) : new ExtendedSamlClient(cfg);
     saml2Client.setName(tenantId);
     saml2Client.setCallbackUrl(buildCallbackUrl(okapiUrl, tenantId));
     saml2Client.setRedirectionActionBuilder(new JsonReponseSaml2RedirectActionBuilder(saml2Client));

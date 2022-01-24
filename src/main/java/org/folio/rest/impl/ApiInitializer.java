@@ -1,17 +1,17 @@
 package org.folio.rest.impl;
 
 import io.vertx.core.*;
+
+import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.folio.rest.resource.interfaces.InitAPI;
 import org.folio.util.WebClientFactory;
 
-import javax.net.ssl.HttpsURLConnection;
-import javax.net.ssl.SSLContext;
-import javax.net.ssl.TrustManager;
-import javax.net.ssl.X509TrustManager;
 import java.security.GeneralSecurityException;
 import java.security.cert.X509Certificate;
+
+import javax.net.ssl.*;
 
 public class ApiInitializer implements InitAPI {
 
@@ -30,6 +30,12 @@ public class ApiInitializer implements InitAPI {
     String disableResolver = System.getProperty("vertx.disableDnsResolver");
     log.info("vertx.disableDnsResolver (netty workaround): " + disableResolver);
 
+    
+    // Replace the default hostname verifier on the HttURLConnection class,
+    // as it denies all (even valid by default). This static is used by our HTTPClient code
+    // in the metadata resolver.
+    HttpsURLConnection.setDefaultHostnameVerifier(SSLConnectionSocketFactory.getDefaultHostnameVerifier());
+    
     handler.handle(Future.succeededFuture(true));
   }
 
@@ -38,33 +44,47 @@ public class ApiInitializer implements InitAPI {
    * https://stackoverflow.com/a/2893932
    */
   private void trustAllCertificates() {
-    log.warn("Applying trustAllCertificates() to bypass HTTPS cert errors. " +
-      "This is needed by IdPs with self signed certificates. " +
-      "Do not use this in production!");
-
-    // Create a trust manager that does not validate certificate chains
-    TrustManager[] trustAllCerts = new TrustManager[]{
-      new X509TrustManager() {
-        public java.security.cert.X509Certificate[] getAcceptedIssuers() {
-          return new X509Certificate[0];
-        }
-
-        public void checkClientTrusted(
-          java.security.cert.X509Certificate[] certs, String authType) {
-        }
-
-        public void checkServerTrusted(
-          java.security.cert.X509Certificate[] certs, String authType) {
-        }
-      }
-    };
+    log.warn(
+      "\n************ DO NOT USE IN PRODUCTION **********" +
+      "\n** Disabling all SSL certificate verification **" +
+      "\n************************************************");
 
     // Install the all-trusting trust manager
     try {
-      SSLContext sc = SSLContext.getInstance("SSL");
+      
+      // Create a trust manager that does not validate certificate chains
+      final TrustManager[] trustAllCerts = new TrustManager[]{
+        new X509TrustManager() {
+          public java.security.cert.X509Certificate[] getAcceptedIssuers() {
+            return new X509Certificate[0];
+          }
+
+          public void checkClientTrusted(
+            java.security.cert.X509Certificate[] certs, String authType) {
+          }
+
+          public void checkServerTrusted(
+            java.security.cert.X509Certificate[] certs, String authType) {
+          }
+        }
+      };
+      
+      // Inititalise the security manager with the new insecure trust-store.
+      final SSLContext sc = SSLContext.getInstance(SSLConnectionSocketFactory.TLS);
       sc.init(null, trustAllCerts, new java.security.SecureRandom());
+      
+      // Set some defaults.
+      SSLContext.setDefault(sc);
+
       HttpsURLConnection.setDefaultSSLSocketFactory(sc.getSocketFactory());
+      HttpsURLConnection.setDefaultHostnameVerifier(new HostnameVerifier() {
+        public boolean verify(String hostname, SSLSession session) {
+          return true; // Allow any name in the certificate.
+        }
+      });
+      
     } catch (GeneralSecurityException e) {
+      log.error("Error installing custom Certificate trust manager", e); 
     }
   }
 }
