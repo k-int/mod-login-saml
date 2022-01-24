@@ -4,11 +4,8 @@ import java.net.MalformedURLException;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 
-import io.vertx.core.Context;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.folio.config.model.SAML2ClientMock;
 import org.folio.config.model.SamlClientComposite;
 import org.folio.config.model.SamlConfiguration;
@@ -20,14 +17,15 @@ import org.pac4j.saml.client.SAML2Client;
 import org.pac4j.saml.config.SAML2Configuration;
 import org.pac4j.saml.state.SAML2StateGenerator;
 import org.springframework.core.io.ByteArrayResource;
+import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
 
 import io.vertx.core.CompositeFuture;
+import io.vertx.core.Context;
 import io.vertx.core.Future;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.ext.web.RoutingContext;
-import org.springframework.core.io.Resource;
 
 /**
  * Load Pac4j {@link SAML2Client} from configuration
@@ -37,7 +35,6 @@ import org.springframework.core.io.Resource;
 public class SamlClientLoader {
 
   public static final String CALLBACK_ENDPOINT = "/saml/callback";
-  private static final Logger log = LogManager.getLogger(SamlClientLoader.class);
 
   private SamlClientLoader() {
 

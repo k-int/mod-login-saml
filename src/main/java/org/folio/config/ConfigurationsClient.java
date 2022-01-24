@@ -1,14 +1,11 @@
 package org.folio.config;
 
-import io.vertx.core.Future;
-import io.vertx.core.Vertx;
-import io.vertx.core.http.HttpMethod;
-import io.vertx.core.json.JsonArray;
-import io.vertx.core.json.JsonObject;
-import io.vertx.ext.web.client.predicate.ResponsePredicate;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.stream.Collectors;
+
 import org.apache.commons.lang3.StringUtils;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.folio.config.model.SamlConfiguration;
 import org.folio.okapi.common.GenericCompositeFuture;
 import org.folio.okapi.common.XOkapiHeaders;
@@ -17,10 +14,12 @@ import org.folio.util.WebClientFactory;
 import org.folio.util.model.OkapiHeaders;
 import org.springframework.util.Assert;
 
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.stream.Collectors;
+import io.vertx.core.Future;
+import io.vertx.core.Vertx;
+import io.vertx.core.http.HttpMethod;
+import io.vertx.core.json.JsonArray;
+import io.vertx.core.json.JsonObject;
+import io.vertx.ext.web.client.predicate.ResponsePredicate;
 
 /**
  * Connect to mod-configuration via Okapi
@@ -29,7 +28,6 @@ import java.util.stream.Collectors;
  */
 public class ConfigurationsClient {
 
-  private static final Logger log = LogManager.getLogger(ConfigurationsClient.class);
 
   public static final String CONFIGURATIONS_ENTRIES_ENDPOINT_URL = "/configurations/entries";
   public static final String MODULE_NAME = "LOGIN-SAML";
