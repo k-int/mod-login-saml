@@ -129,7 +129,7 @@ public class SamlAPI implements Saml {
     String relayState = stripesUrl + (stripesUrl.indexOf('?') >= 0 ? '&' : '?') + CSRF_TOKEN + '=' + csrfToken;
     Cookie relayStateCookie = Cookie.cookie(RELAY_STATE, relayState)
         .setPath("/").setHttpOnly(true).setSecure(true);
-    routingContext.addCookie(relayStateCookie);
+    routingContext.response().addCookie(relayStateCookie);
 
 
     // register non-persistent session (this request only) to overWrite relayState
@@ -187,7 +187,7 @@ public class SamlAPI implements Saml {
     final URI originalUrl = relayStateUrl;
     final URI stripesBaseUrl = UrlUtil.parseBaseUrl(originalUrl);
 
-    Cookie relayStateCookie = routingContext.getCookie(RELAY_STATE);
+    Cookie relayStateCookie = routingContext.request().getCookie(RELAY_STATE);
     if (relayStateCookie == null || !relayState.contentEquals(relayStateCookie.getValue())) {
       asyncResultHandler.handle(Future.succeededFuture(PostSamlCallbackResponse.respond403WithTextPlain("CSRF attempt detected")));
       return;
