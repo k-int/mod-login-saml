@@ -3,7 +3,6 @@ package org.folio.rest.impl;
 import static io.restassured.RestAssured.given;
 import static io.restassured.module.jsv.JsonSchemaValidator.matchesJsonSchemaInClasspath;
 import static org.folio.util.Base64AwareXsdMatcher.matchesBase64XsdInClasspath;
-import static org.folio.util.UrlUtilTest.MOCK_PORT;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
@@ -13,14 +12,13 @@ import static org.junit.Assert.assertThrows;
 
 import java.io.IOException;
 import java.net.URI;
-
 import java.nio.charset.StandardCharsets;
 import java.util.Objects;
+import java.util.Optional;
+
 import org.apache.commons.io.IOUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-
-import java.util.Optional;
 import org.folio.config.SamlConfigHolder;
 import org.folio.rest.RestVerticle;
 import org.folio.rest.jaxrs.model.SamlConfigRequest;
@@ -29,12 +27,7 @@ import org.folio.util.IdpMock;
 import org.folio.util.MockJson;
 import org.folio.util.PercentCodec;
 import org.folio.util.TestingClasspathResolver;
-import org.junit.After;
-import org.junit.AfterClass;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.*;
 import org.junit.rules.TestName;
 import org.junit.runner.RunWith;
 import org.pac4j.core.context.HttpConstants;
@@ -793,6 +786,7 @@ public class SamlAPITest {
   }
 
   class TemporaryRedirectAction extends RedirectionAction {
+    private static final long serialVersionUID = 1935717829569419545L;
 
     TemporaryRedirectAction() {
       super(302);
